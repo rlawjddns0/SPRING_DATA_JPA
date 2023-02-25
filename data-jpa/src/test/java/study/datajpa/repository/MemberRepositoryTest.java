@@ -15,6 +15,8 @@ import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,11 +25,12 @@ import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
 @Transactional
-@Rollback(value = false)
 class MemberRepositoryTest {
 
     @Autowired MemberRepository memberRepository;
     @Autowired TeamRepository teamRepository;
+    @PersistenceContext
+    EntityManager em;
 
 
 
@@ -158,4 +161,55 @@ class MemberRepositoryTest {
 
 
     }
+
+    @Test
+    public void bulkUpdate(){
+        memberRepository.save(new Member("sss",10));
+        memberRepository.save(new Member("www",19));
+        memberRepository.save(new Member("sdw",120));
+        memberRepository.save(new Member("ssees",21));
+        memberRepository.save(new Member("sssssstt",2));
+        memberRepository.save(new Member("bbrbr",24));
+
+
+        //벌크연산은 영속성 컨텍스트를 무시하고 바로 디비로 업데이트 날린다.
+        int resultCount=memberRepository.bulkAgePlus(20);
+//        em.clear();
+
+        Member member = memberRepository.findMemberByUsername("bbrbr");
+
+        System.out.println(member.toString());
+
+
+        assertThat(resultCount).isEqualTo(3);
+
+    }
+
+    @Test
+    public void findMemberLazy(){
+        //given
+        //member1 -> teamA
+        //member2 -> teamB
+        Team teamA = new Team("teamA");
+        Team teamB = new Team("teamB");
+        teamRepository.save(teamA);
+        teamRepository.save(teamB);
+
+        memberRepository.save(new Member("member1",10,teamA));
+        memberRepository.save(new Member("member2",19,teamB));
+
+        em.flush();
+        em.clear();
+
+        //when
+//        List<Member> members = memberRepository.findAll();//LAZY이기 때문에 멤버만 가져온다. team은 null로 남겨둘수 없기 때문에 가짜객체를 가져온다.
+//        List<Member> members = memberRepository.findMemberFetchJoin();//fetch join으로 한방에 다 가져온다.
+        List<Member> members = memberRepository.findAll();
+        for (Member member : members) {
+            System.out.println("member= "+ member.getUsername());
+            System.out.println("member.team= "+ member.getTeam().getName());//이때 팀을 가져온다.
+        }
+
+    }
+
 }
